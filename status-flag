@@ -1,0 +1,92 @@
+from typing import List, Dict
+from dataclasses import dataclass
+
+@dataclass
+class EmployeeRecord:
+    emp_id: str
+    emp_type: str
+    dev_login: str
+    uat_login: str
+    status: str  # A, L, or T
+    flag: str    # Y or N
+
+def analyze_employee_logins(records: List[EmployeeRecord]) -> Dict:
+    """
+    Analyzes employee login matches based on specific business rules.
+    """
+    # Step 1: Group records by emp_id and emp_type
+    grouped_records = {}
+    for record in records:
+        key = (record.emp_id, record.emp_type)
+        if key not in grouped_records:
+            grouped_records[key] = []
+        grouped_records[key].append(record)
+    
+    # Step 2: Filter records based on conditions
+    records_to_check = []
+    for (emp_id, emp_type), group in grouped_records.items():
+        has_flag_y = any(r.flag == 'Y' for r in group)
+        has_flag_n = any(r.flag == 'N' for r in group)
+        has_status_t = any(r.status == 'T' for r in group)
+        
+        # Check conditions: has Y flag, has N flag, and no T status
+        if has_flag_y and has_flag_n and not has_status_t:
+            records_to_check.extend([r for r in group if r.flag == 'Y'])
+    
+    # Step 3: Analyze login matches for filtered records
+    results = []
+    for record in records_to_check:
+        match_result = analyze_login_match(record.dev_login, record.uat_login)
+        results.append({
+            'emp_id': record.emp_id,
+            'emp_type': record.emp_type,
+            'dev_login': record.dev_login,
+            'uat_login': record.uat_login,
+            'match_type': match_result
+        })
+    
+    return results
+
+def analyze_login_match(dev_login: str, uat_login: str) -> str:
+    """
+    Determines the type of match between dev_login and uat_login.
+    Returns: 'FULL_MATCH', 'PARTIAL_MATCH' (first 3 chars), or 'NO_MATCH'
+    """
+    # Convert to lowercase for case-insensitive comparison
+    dev_login = dev_login.lower()
+    uat_login = uat_login.lower()
+    
+    # Check for full match
+    if dev_login == uat_login:
+        return 'FULL_MATCH'
+    
+    # Check for partial match (first 3 characters)
+    if len(dev_login) >= 3 and len(uat_login) >= 3:
+        if dev_login[:3] == uat_login[:3]:
+            return 'PARTIAL_MATCH'
+    
+    return 'NO_MATCH'
+
+# Example usage
+def test_employee_matcher():
+    # Sample test data
+    test_records = [
+        EmployeeRecord("E001", "DEV", "john_dev", "john_uat", "A", "Y"),
+        EmployeeRecord("E001", "DEV", "john_dev", "john_dev2", "A", "N"),
+        EmployeeRecord("E002", "QA", "mary_dev", "mary_uat", "T", "Y"),
+        EmployeeRecord("E003", "DEV", "bob_dev", "bob_dev", "A", "Y"),
+        EmployeeRecord("E003", "DEV", "bob_alt", "bob_uat", "A", "N"),
+    ]
+    
+    results = analyze_employee_logins(test_records)
+    
+    print("\nMatch Results:")
+    for result in results:
+        print(f"\nEmployee ID: {result['emp_id']}")
+        print(f"Employee Type: {result['emp_type']}")
+        print(f"Dev Login: {result['dev_login']}")
+        print(f"UAT Login: {result['uat_login']}")
+        print(f"Match Type: {result['match_type']}")
+
+# Run test cases
+test_employee_matcher()
